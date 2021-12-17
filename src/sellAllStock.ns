@@ -60,6 +60,6 @@ export async function main(ns) {
   stockSymbols = ns.stock.getSymbols()
   stockSymbols.forEach((stockSymbol) => {
     sellLongs(ns, stockSymbol)
-    sellShorts(ns, stockSymbol)
+    //sellShorts(ns, stockSymbol)
   })
 }

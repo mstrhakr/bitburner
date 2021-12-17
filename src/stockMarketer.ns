@@ -138,14 +138,6 @@ function netWorth(ns) {
     ns.tprint(`Net worth: ${ns.nFormat(totalValue, "$0.000a")} = ${ns.nFormat(portfolioValue, "$0.000a")} stocks + ${ns.nFormat(cashValue, "$0.000a")} cash`);
 }
 
-function netWorth(ns) {
-    const allStocks = getAllStocks(ns);
-    const portfolioValue = getPortfolioValue(allStocks);
-    const cashValue = ns.getPlayer().money;
-    const totalValue = portfolioValue + cashValue;
-    ns.tprint(`Net worth: ${ns.nFormat(totalValue, "$0.000a")} = ${ns.nFormat(portfolioValue, "$0.000a")} stocks + ${ns.nFormat(cashValue, "$0.000a")} cash`);
-}
-
 export async function main(ns) {
     if (ns.args[2]) { var delay = ns.args[2]; } else { var delay = 30; };//delay in seconds
     var delay = delay * 1000;
