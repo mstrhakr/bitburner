@@ -106,12 +106,11 @@ function buyStocks(ns, stocksToBuy) {
         }
         // spend up to half the money available on the highest rated stock
         // (the following stock will buy half as much)
-        const moneyThisStock = moneyRemaining / 10 - 100000;
+        const moneyThisStock = moneyRemaining / 2 - 100000;
         let numShares = moneyThisStock / stock.askPrice;
 
         numShares = Math.min(numShares, stock.maxShares - stock.shares - stock.sharesShort);
-        var estCost = numShares * ns.stock.getPrice(stock.symbol);
-        if (savings > (moneyRemaining - estCost)) {
+        if (savings > (moneyRemaining - moneyThisStock)) {
             return;
         };
         const boughtPrice = ns.stock.buy(stock.symbol, numShares);
