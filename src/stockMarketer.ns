@@ -72,7 +72,7 @@ function getBearStocks(stocks, threshold = 0.48) {
     return bearStocks;
 }
 
-function recordProfit(ns, profit) {
+async function recordProfit(ns, profit) {
     var prevProfit = ns.read("profit.txt");
     var totalProfit = prevProfit + profit;
     ns.write("profit.txt", totalProfit, w);
@@ -128,6 +128,14 @@ function buyStocks(ns, stocksToBuy) {
             ns.tprint(`Bought ${ns.nFormat(boughtTotal, "$0.0a")} of ${stock.summary}`);
         }
     }
+}
+
+function netWorth(ns) {
+    const allStocks = getAllStocks(ns);
+    const portfolioValue = getPortfolioValue(allStocks);
+    const cashValue = ns.getPlayer().money;
+    const totalValue = portfolioValue + cashValue;
+    ns.tprint(`Net worth: ${ns.nFormat(totalValue, "$0.000a")} = ${ns.nFormat(portfolioValue, "$0.000a")} stocks + ${ns.nFormat(cashValue, "$0.000a")} cash`);
 }
 
 function netWorth(ns) {
