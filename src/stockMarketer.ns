@@ -72,6 +72,13 @@ function getBearStocks(stocks, threshold = 0.48) {
     return bearStocks;
 }
 
+function recordProfit(ns, profit) {
+    var prevProfit = ns.read("profit.txt");
+    var totalProfit = prevProfit + profit;
+    ns.write("profit.txt", totalProfit, w);
+    ns.tprint(`Total Stock Profits Since ${startTime}: ${ns.nFormat(totalProfit, "$0.0a")}`);
+}
+
 function sellStocks(ns, stocksToSell) {
     for (const stock of stocksToSell) {
         if (stock.shares > 0) {
@@ -82,8 +89,7 @@ function sellStocks(ns, stocksToSell) {
                 const saleProfit = saleTotal - saleCost;
                 stock.shares = 0;
                 ns.tprint(`Sold ${stock.summary} stock for ${ns.nFormat(saleProfit, "$0.0a")} profit`);
-                totalprofit += saleProfit;
-                ns.tprint(`Total Stock Profits Since ${startTime}: ${ns.nFormat(totalprofit, "$0.0a")}`);
+                recordProfit(saleProfit)
             }
         }
     }
@@ -110,7 +116,8 @@ function buyStocks(ns, stocksToBuy) {
         let numShares = moneyThisStock / stock.askPrice;
 
         numShares = Math.min(numShares, stock.maxShares - stock.shares - stock.sharesShort);
-        if (savings > (moneyRemaining - moneyThisStock)) {
+        var estCost = numShares * ns.stock.getPrice(stock.symbol);
+        if (savings > (moneyRemaining - estCost)) {
             return;
         };
         const boughtPrice = ns.stock.buy(stock.symbol, numShares);
@@ -132,7 +139,7 @@ function netWorth(ns) {
 }
 
 export async function main(ns) {
-    if (ns.args[2]) { var delay = ns.args[2]; } else { var delay = 60; };//delay in seconds
+    if (ns.args[2]) { var delay = ns.args[2]; } else { var delay = 30; };//delay in seconds
     var delay = delay * 1000;
     ns.disableLog("sleep");
     ns.disableLog("stock.buy");
