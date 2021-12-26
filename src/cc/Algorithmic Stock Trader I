@@ -1,0 +1,31 @@
+/* Algorithmic Stock Trader I
+
+You are attempting to solve a Coding Contract. You have 5 tries remaining, 
+after which the contract will self-destruct.
+
+You are given the following array of stock prices (which are numbers) 
+where the i-th element represents the stock price on day i:
+
+79,1,77,112,11,15,166,146,91,169,102,100,142,68,61,48,13,99
+
+Determine the maximum possible profit you can earn using at most one transaction 
+(i.e. you can only buy and sell the stock once). If no profit can be made then 
+the answer should be 0. Note that you have to buy the stock before you can sell it */
+
+var stockPrices = [79, 1, 77, 112, 11, 15, 166, 146, 91, 169, 102, 100, 142, 68, 61, 48, 13, 99];
+var counter = 0;
+var iterations = 0;
+var totals = [];
+while (iterations < stockPrices.length){
+    const total = 0
+    for (const price of stockPrices) {
+        total += price;
+        
+        
+        counter++ ;
+    
+    };
+    print(total);
+    iterations++;
+};
+(()a())()
