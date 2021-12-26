@@ -70,7 +70,7 @@ function getMemberInformation(ns, name) {
 }
 
 function getMoney(ns) {
-  return ns.getServerMoneyAvailable('home') - 1000000000
+  return ns.getServerMoneyAvailable('home') - 100000000
 }
 
 const SORT_TYPES = {
@@ -172,7 +172,9 @@ export async function main(ns) {
     ns.tprint(`[${localeHHMMSS()}] Members (${gangMemberNames.length}) to check: ${gangMemberNames.join(', ')}`)
 
     for (let i = 0; i < gangMemberNames.length; i++) {
+      let averageImprovment = 1
       const gangMemberName = gangMemberNames[i]
+      ns.gang.setMemberTask(gangMemberName, 'Train Combat')
       let ascended = true
       let counter = 0
 
@@ -182,25 +184,42 @@ export async function main(ns) {
         ascended = false
 
         const gangMemberInfo = getMemberInformation(ns, gangMemberName)
+        ns.print(`${gangMemberInfo.str_asc_mult}/${strengthAscensionMultHardLimit}`)
         if (gangMemberInfo.str_asc_mult < strengthAscensionMultHardLimit) {
           let hasBat = gangMemberInfo.upgrades.includes(baseballBat)
 
-          if (!hasBat && getMoney(ns) > 0) {
+          if (!hasBat && getMoney(ns) > 2000000) {
             hasBat = ns.gang.purchaseEquipment(gangMemberName, baseballBat)
           }
 
           if (hasBat) {
-            if (gangMemberInfo.str_asc_mult < strengthAscensionMultHardLimit) {
+            //ns.print(ascensionResult)
+
+            if (gangMemberInfo.str_asc_mult < strengthAscensionMultHardLimit / 3) {
+              function checkAverageImprovment(ns) {
+                const ascensionResult = ns.gang.getAscensionResult(gangMemberName)
+                if (ascensionResult == null || ascensionResult["str"] == null) {
+                  return 1
+                }
+                return (ascensionResult["str"] + ascensionResult["def"] + ascensionResult["dex"]) / 3
+              }
+
+              while (averageImprovment < 1.1) {
+                averageImprovment = checkAverageImprovment(ns)
+                ns.print(`[${localeHHMMSS()}] Ascention average improvment : ${ns.nFormat(averageImprovment, "0.0000%")}`)
+                await ns.sleep(1500)
+              }
               ns.gang.ascendMember(gangMemberName)
               ascended = true
               counter += 1
+              await ns.sleep(1000)
+              //if (counter >= 500) { ascended = false }
             } else {
               ns.gang.setMemberTask(gangMemberName, 'Terrorism')
             }
           }
         }
-
-        await ns.sleep(1)
+        await ns.sleep(100)
       }
 
       ns.tprint(`[${localeHHMMSS()}][${gangMemberName}][${i + 1}/${gangMemberNames.length}] ${counter} ascensions done, moving on`)
@@ -211,7 +230,7 @@ export async function main(ns) {
     ns.tprint(`[${localeHHMMSS()}] Finished Basball Bat ascension`)
 
     let myGangReputation = ns.gang.getGangInformation().respect
-    const minimumReputationToBuyDex = 50000000
+    const minimumReputationToBuyDex = 50000
 
     if (myGangReputation > minimumReputationToBuyDex && getMoney(ns) > 0) {
       let equipmentList = ['Baseball Bat', 'Bulletproof Vest', 'Ford Flex V20', 'Katana', 'Glock 18C']
@@ -224,6 +243,7 @@ export async function main(ns) {
       ns.tprint(`[${localeHHMMSS()}] Members (${gangMemberNames.length}) to check: ${gangMemberNames.join(', ')}`)
 
       for (let i = 0; i < gangMemberNames.length && myGangReputation > minimumReputationToBuyDex; i++) {
+        let averageImprovment = 1
         const gangMemberName = gangMemberNames[i]
         let ascended = true
         let counter = 0
@@ -250,6 +270,19 @@ export async function main(ns) {
 
             if (!missingEq.length) {
               if (gangMemberInfo.dex_asc_mult < strengthAscensionMultHardLimit) {
+                function checkAverageImprovment(ns) {
+                  const ascensionResult = ns.gang.getAscensionResult(gangMemberName)
+                  if (ascensionResult == null || ascensionResult["str"] == null) {
+                    return 1
+                  }
+                  return (ascensionResult["str"] + ascensionResult["def"] + ascensionResult["dex"]) / 3
+                }
+
+                while (averageImprovment < 1.01) {
+                  averageImprovment = checkAverageImprovment(ns)
+                  ns.print(`[${localeHHMMSS()}] Ascention average improvment : ${ns.nFormat(averageImprovment-1, "0.0000%")}`)
+                  await ns.sleep(1500)
+                }
                 ns.gang.ascendMember(gangMemberName)
                 ascended = true
                 counter += 1
@@ -351,4 +384,5 @@ export async function main(ns) {
   }
 
   ns.tprint(`[${localeHHMMSS()}] Finished, exiting`)
+  ns.spawn('gangManager.ns')
 }

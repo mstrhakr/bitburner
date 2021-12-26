@@ -1,10 +1,7 @@
 const settings = {
   keys: {
-    buyEquipment: 'BB_BUY_EQUIPMENT',
-    doAscension: 'BB_DO_ASCENSION',
-    strAscMultHardLimit: 'BB_STR_ASC_MULT_HARD_LIMIT',
-    equipmentList: 'BB_EQUIPMENT_LIST',
-    augumentationList: 'BB_AUGUMENTATION_LIST',
+    maxEquipment: 'BB_MAX_EQUIPMENT',
+    allEquipment: 'BB_ALL_EQUIPMENT',
   },
 }
 
@@ -52,6 +49,7 @@ const gangMemberNamesList = [
 ]
 
 const equipmentTypes = ['Weapon', 'Armor', 'Vehicle', 'Rootkit', 'Augmentation']
+const allEquipment = getItem(settings.keys.allEquipment) || ns.gang.getEquipmentNames()
 
 function localeHHMMSS(ms = 0) {
   if (!ms) {
@@ -138,143 +136,207 @@ function sortBy(ns, sortType = null, direction = DIRECTIONS.ASC) {
   }
 }
 
-export async function main(ns) {
-  ns.disableLog('ALL')
-  ns.tprint(`[${localeHHMMSS()}] Starting gangManager.ns`)
-
-  let hostname = ns.getHostname()
-
-  if (hostname !== 'home') {
-    throw new Exception('Run the script from home')
+const allEquipmentInfo = []
+class Equipment {
+  constructor(ns, equipment) {
+    this.name = equipment;
+    this.type = ns.gang.getEquipmentType(equipment);
+    this.stats = ns.gang.getEquipmentStats(equipment);
+    this.cost = ns.gang.getEquipmentCost(equipment);
   }
 
-  let nextAscensionAttempt = new Date().getTime() + 60 * 1000
+}
 
-  while (true) {
-    const doAscension = getItem(settings.keys.doAscension) || false
-    const buyEquipment = getItem(settings.keys.buyEquipment) || false
-    const strengthAscensionMultHardLimit = getItem(settings.keys.strAscMultHardLimit) || 10
-    setItem(settings.keys.doAscension, doAscension)
-    setItem(settings.keys.buyEquipment, buyEquipment)
-    setItem(settings.keys.strAscMultHardLimit, strengthAscensionMultHardLimit)
+function getEquipmentInfo(ns,allEquipment){
+  const output = []
+  for (const equipment in allEquipment) {
+    output += new Equipment(ns,equipment)
+  }
+  return output
+}
 
-    const equipmentsToBuy = getItem(settings.keys.equipmentList) || []
-    const augumentationssToBuy = getItem(settings.keys.augumentationList) || []
-
-    while (ns.gang.canRecruitMember()) {
-      const gangMemberNames = getMemberNames(ns)
-      ns.gang.recruitMember(gangMemberNamesList[gangMemberNames.length])
-      ns.tprint(`[${localeHHMMSS()}] Recruited ${gangMemberNamesList[gangMemberNames.length]}`)
-      await ns.sleep(1)
+async function checkGangEquipment(ns, gangMemberNames) {
+  let maxEquipment = getItem(settings.keys.maxEquipment)
+  let maxType = 3
+  const allEquipment = ns.gang.getEquipmentNames();//getItem(settings.keys.allEquipment)
+  //const allEquipmentInfo = getEquipmentInfo(ns,allEquipment)
+  let equipmentsToBuy = allEquipment.slice(0, maxEquipment)
+  let hasAllEq = false
+  let totalEquipmentCount = 0
+  if (maxEquipment > 6) {
+    return
+  }
+  while (!hasAllEq) {
+    gangMemberNames.forEach((gangMemberName) => {
+      if (maxEquipment > 3) {
+        totalEquipmentCount += buyEquipment(ns, allEquipment[maxEquipment], gangMemberName)
+      } else {
+        for (const index in equipmentsToBuy) {
+          totalEquipmentCount += buyEquipment(ns, equipmentsToBuy[index], gangMemberName)
+        }
+      }
+    })
+    if (totalEquipmentCount >= gangMemberNames.length * equipmentsToBuy.length || (totalEquipmentCount >= gangMemberNames.length && maxEquipment > 3)) {
+      hasAllEq = true
+      maxEquipment = (maxEquipment + 1) > allEquipment.length ? allEquipment.length : maxEquipment + 1
     }
+    await ns.sleep(5000)
+  }
+  setItem(settings.keys.maxEquipment, maxEquipment)
+}
 
-    const gangMemberNames = getMemberNames(ns)
+async function buyEquipment(ns, equipment, gangMemberName) {
+  let totalCash = (ns.getPlayer()).money
+  const gangMemberInfo = getMemberInformation(ns, gangMemberName)
+  if ((!gangMemberInfo.upgrades.includes(equipment) || !gangMemberInfo.augmentations.includes(equipment)) && ns.gang.getEquipmentCost(equipment) < totalCash) {
+    ns.gang.purchaseEquipment(gangMemberName, equipment)
+    //ns.print(`[${localeHHMMSS()}] Bought ${equipment} for ${gangMemberName}`)
+    return 1
+  }
+  //ns.print(`[${localeHHMMSS()}] Tried to buy ${equipment} for ${gangMemberName}`)
+  //ns.print(`[${localeHHMMSS()}] ${ns.nFormat((ns.getPlayer()).money, "$0.0a")} of ${ns.nFormat(ns.gang.getEquipmentCost(equipment), "$0.0a")} needed`)
+  return 0
+}
+/*
+function checkGangAugments(ns, gangMemberNames) {
+  if (hasAllEq) {
 
-    gangMemberNames
-      .sort(sortBy(ns, SORT_TYPES.STR, DIRECTIONS.DESC))
-      .sort(sortBy(ns, SORT_TYPES.STR_MULT, DIRECTIONS.DESC))
-      .sort(sortBy(ns, SORT_TYPES.STR_ASC_MULT, DIRECTIONS.DESC))
 
-    if (buyEquipment) {
-      let hasAllEq = true
+    let hasAllNonHackAug = true
 
-      gangMemberNames.forEach((gangMemberName) => {
-        const gangMemberInfo = getMemberInformation(ns, gangMemberName)
+    gangMemberNames.forEach((gangMemberName) => {
+      const gangMemberInfo = getMemberInformation(ns, gangMemberName)
+      ns.print(`Checking ${gangMemberName}'s Augments`)
 
-        equipmentsToBuy.forEach((equipment) => {
-          if (gangMemberInfo.upgrades.includes(equipment.name)) return
+      augumentationssToBuy
+        .filter((aug) => !aug.hack)
+        .forEach((equipment) => {
+          if (gangMemberInfo.augmentations.includes(equipment.name)) return
 
           const boughtEquipment = ns.gang.purchaseEquipment(gangMemberName, equipment.name)
 
           if (boughtEquipment) {
             ns.print(`[${localeHHMMSS()}] Bought ${equipment.name} (${equipment.type}) for ${gangMemberName}`)
           } else {
-            hasAllEq = false
+            hasAllNonHackAug = false
           }
         })
-      })
+    })
 
-      if (hasAllEq) {
-        let hasAllNonHackAug = true
+    if (hasAllNonHackAug) {
+      gangMemberNames.forEach((gangMemberName) => {
+        const gangMemberInfo = getMemberInformation(ns, gangMemberName)
 
-        gangMemberNames.forEach((gangMemberName) => {
-          const gangMemberInfo = getMemberInformation(ns, gangMemberName)
+        augumentationssToBuy
+          .filter((aug) => aug.hack)
+          .forEach((equipment) => {
+            if (gangMemberInfo.augmentations.includes(equipment.name)) return
 
-          augumentationssToBuy
-            .filter((aug) => !aug.hack)
-            .forEach((equipment) => {
-              if (gangMemberInfo.augmentations.includes(equipment.name)) return
+            const boughtEquipment = ns.gang.purchaseEquipment(gangMemberName, equipment.name)
 
-              const boughtEquipment = ns.gang.purchaseEquipment(gangMemberName, equipment.name)
-
-              if (boughtEquipment) {
-                ns.print(`[${localeHHMMSS()}] Bought ${equipment.name} (${equipment.type}) for ${gangMemberName}`)
-              } else {
-                hasAllNonHackAug = false
-              }
-            })
-        })
-
-        if (hasAllNonHackAug) {
-          gangMemberNames.forEach((gangMemberName) => {
-            const gangMemberInfo = getMemberInformation(ns, gangMemberName)
-
-            augumentationssToBuy
-              .filter((aug) => aug.hack)
-              .forEach((equipment) => {
-                if (gangMemberInfo.augmentations.includes(equipment.name)) return
-
-                const boughtEquipment = ns.gang.purchaseEquipment(gangMemberName, equipment.name)
-
-                if (boughtEquipment) {
-                  ns.print(`[${localeHHMMSS()}] Bought ${equipment.name} (${equipment.type}) for ${gangMemberName}`)
-                }
-              })
+            if (boughtEquipment) {
+              ns.print(`[${localeHHMMSS()}] Bought ${equipment.name} (${equipment.type}) for ${gangMemberName}`)
+            }
           })
-        }
+      })
+    }
+  }
+}
+*/
+function getMaxEquipment(ns, gangMemberNames) {//get current max equipment level (need to upgrade to take type into account)
+  let counter = 0
+  //let allEquipment = ns.gang.getEquipmentNames()
+  gangMemberNames.forEach((gangMemberName) => {
+    const gangMemberInfo = getMemberInformation(ns, gangMemberName)
+    allEquipment.forEach((equipment) => {
+      if (gangMemberInfo.upgrades.includes(equipment) || gangMemberInfo.augmentations.includes(equipment)) {
+        counter++
       }
+    })
+  })
+  return Math.max(3, Math.floor(counter / gangMemberNames.length))
+}
+
+export async function main(ns) {
+
+  /*const allEquipment = getItem(settings.keys.allEquipment) || ns.gang.getEquipmentNames()
+  setItem(settings.keys.allEquipment, allEquipment)*/
+
+  //ns.disableLog('ALL')
+
+  ns.tprint(`[${localeHHMMSS()}] Starting gangManager.ns`)
+  let sleepT = 5000
+  let hostname = ns.getHostname()
+
+  if (hostname !== 'home') {
+    throw new Exception('Run the script from home')
+  }
+
+  let nextAscensionAttempt = new Date().getTime() + 30 * 1000
+  let loopCount = 0
+
+  while (true) {//main loop start
+    const doAscension = true
+    const buyEquipment = true
+    const strengthAscensionMultHardLimit = 10
+
+    while (ns.gang.canRecruitMember()) {
+      const gangMemberNames = getMemberNames(ns)
+      ns.gang.recruitMember(gangMemberNamesList[gangMemberNames.length])
+      ns.tprint(`[${localeHHMMSS()}] Recruited ${gangMemberNamesList[gangMemberNames.length]}`)
     }
 
-    if (gangMemberNames.length && new Date().getTime() > nextAscensionAttempt) {
-      if (doAscension) {
-        let strengthAscensionMultExpectation = 0
-        let minimumStrengthAscensionMult = Infinity
-        gangMemberNames.forEach((gangMemberName) => {
-          const gangMemberInfo = getMemberInformation(ns, gangMemberName)
+    const gangMemberNames = getMemberNames(ns)
+    const maxEquipment = getMaxEquipment(ns, gangMemberNames)
+    setItem(settings.keys.maxEquipment, maxEquipment)
 
-          minimumStrengthAscensionMult = Math.min(minimumStrengthAscensionMult, gangMemberInfo.str_asc_mult)
-        })
+    gangMemberNames
+      .sort(sortBy(ns, SORT_TYPES.STR, DIRECTIONS.DESC))
+      .sort(sortBy(ns, SORT_TYPES.STR_MULT, DIRECTIONS.DESC))
+      .sort(sortBy(ns, SORT_TYPES.STR_ASC_MULT, DIRECTIONS.DESC))
+    if (buyEquipment && maxEquipment < allEquipment.length) {
+      await checkGangEquipment(ns, gangMemberNames)
+    }
 
-        strengthAscensionMultExpectation = Math.max(0, minimumStrengthAscensionMult) + 2
-        strengthAscensionMultExpectation = Math.min(strengthAscensionMultExpectation, strengthAscensionMultHardLimit)
+    if (gangMemberNames.length && new Date().getTime() > nextAscensionAttempt && doAscension) {
+      let strAscMultExpected = 0
+      let minimumStrengthAscensionMult = Infinity
+      gangMemberNames.forEach((gangMemberName) => {
+        const gangMemberInfo = getMemberInformation(ns, gangMemberName)
 
-        const isEarlyAscension = minimumStrengthAscensionMult < 2 ? true : false
-        const gangMembersToAscend = []
+        minimumStrengthAscensionMult = Math.min(minimumStrengthAscensionMult, gangMemberInfo.str_asc_mult)
+      })
 
-        gangMemberNames.forEach((gangMemberName) => {
-          const gangMemberInfo = getMemberInformation(ns, gangMemberName)
-          if (gangMemberInfo.str_asc_mult < strengthAscensionMultExpectation) {
-            const boughtEquipment = equipmentsToBuy.filter((equipment) => gangMemberInfo.upgrades.includes(equipment.name))
+      strAscMultExpected = Math.max(0, minimumStrengthAscensionMult) + 2
+      strAscMultExpected = Math.min(strAscMultExpected, strengthAscensionMultHardLimit)
 
-            if ((isEarlyAscension && boughtEquipment.length > 10) || boughtEquipment.length === equipmentsToBuy.length) {
-              gangMembersToAscend.push(gangMemberName)
-            }
+      const isEarlyAscension = minimumStrengthAscensionMult < 2 ? true : false
+      const gangMembersToAscend = []
+
+      gangMemberNames.forEach((gangMemberName) => {
+        const gangMemberInfo = getMemberInformation(ns, gangMemberName)
+        if (gangMemberInfo.str_asc_mult < strAscMultExpected) {
+          const boughtEquipment = allEquipment.filter((equipment) => gangMemberInfo.upgrades.includes(equipment.name))
+
+          if ((isEarlyAscension && boughtEquipment.length > 10) || boughtEquipment.length === allEquipment.length) {
+            gangMembersToAscend.push(gangMemberName)
           }
-        })
+        }
+      })
 
-        const maxMembersToAscend = Math.min(5, Math.ceil(gangMemberNames.length / 3))
-        gangMembersToAscend
-          .sort(sortBy(ns, SORT_TYPES.REPUTATION, DIRECTIONS.ASC))
-          .slice(0, maxMembersToAscend)
-          .forEach((gangMemberName) => {
-            ns.gang.ascendMember(gangMemberName)
-            ns.tprint(`[${localeHHMMSS()}] Ascended ${gangMemberName}`)
-          })
-      }
+      const maxMembersToAscend = Math.min(5, Math.ceil(gangMemberNames.length / 3))
+      gangMembersToAscend
+        .sort(sortBy(ns, SORT_TYPES.REPUTATION, DIRECTIONS.ASC))
+        .slice(0, maxMembersToAscend)
+        .forEach((gangMemberName) => {
+          ns.gang.ascendMember(gangMemberName)
+          ns.tprint(`[${localeHHMMSS()}] Ascended ${gangMemberName}`)
+        })
 
       nextAscensionAttempt = new Date().getTime() + 10 * 60 * 1000
     }
 
+    // ns.exit()  //--------------------------------------------------------------
     const myGang = getMyGangInformation(ns)
     const minimumWanted = 10
     const wantedToRespectRatio = 10
@@ -328,7 +390,8 @@ export async function main(ns) {
         }
       }
     })
-
-    await ns.sleep(2500)
+    loopCount++
+    //ns.print(`End Loop # ${loopCount}, Sleeping for ${sleepT / 1000} seconds.`)
+    await ns.sleep(sleepT)
   }
 }
