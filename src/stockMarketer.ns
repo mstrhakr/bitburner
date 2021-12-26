@@ -1,17 +1,37 @@
-var totalprofit = 0;
-var startTime = new Date(new Date().getTime()).toLocaleTimeString();
+const settings = {
+    delay: 5,
+    counter: 0,
+    startTime: new Date(new Date().getTime()).toLocaleTimeString(),
+    keys: {
+        netWorthChangeLog: 'BB_NET_WORTH_CHANGE_LOG',
+        netWorth: 'BB_NET_WORTH',
+        stockProfit: 'BB_STOCK_PROFIT',
+    },
+}
+
+function getItem(key) {
+    let item = localStorage.getItem(key)
+
+    return item ? JSON.parse(item) : undefined
+}
+
+function setItem(key, value) {
+    localStorage.setItem(key, JSON.stringify(value))
+}
+
+const startTime = new Date(new Date().getTime()).toLocaleTimeString();
 const c = { ounter: 0 };
 
 function tendStocks(ns) {
     const allStocks = getAllStocks(ns);
 
     // select stocks with <51% chance to increase price
-    const stocksToSell = getBearStocks(allStocks, 0.55);
+    const stocksToSell = getBearStocks(allStocks, 0.51);
     // sell all those stocks
     sellStocks(ns, stocksToSell);
 
     // select stocks with >55% chance to increase price
-    const stocksToBuy = getBullStocks(allStocks, 0.65);
+    const stocksToBuy = getBullStocks(allStocks, 0.55);
     // buy the highest-rated stocks available
     buyStocks(ns, stocksToBuy);
 
@@ -72,11 +92,10 @@ function getBearStocks(stocks, threshold = 0.48) {
     return bearStocks;
 }
 
-async function recordProfit(ns, profit) {
-    var prevProfit = ns.read("profit.txt");
+function recordProfit(profit) {
+    var prevProfit = getItem(settings.keys.stockProfit);
     var totalProfit = prevProfit + profit;
-    ns.write("profit.txt", totalProfit, w);
-    ns.tprint(`Total Stock Profits Since ${startTime}: ${ns.nFormat(totalProfit, "$0.0a")}`);
+    setItem(settings.keys.stockProfit, totalProfit);
 }
 
 function sellStocks(ns, stocksToSell) {
@@ -89,7 +108,7 @@ function sellStocks(ns, stocksToSell) {
                 const saleProfit = saleTotal - saleCost;
                 stock.shares = 0;
                 ns.tprint(`Sold ${stock.summary} stock for ${ns.nFormat(saleProfit, "$0.0a")} profit`);
-                recordProfit(saleProfit)
+                recordProfit(saleProfit);
             }
         }
     }
@@ -130,34 +149,73 @@ function buyStocks(ns, stocksToBuy) {
     }
 }
 
+function calculateAverage(array) {
+    var total = 0.0;
+    var count = 0;
+
+    array.forEach(function (item, index) {
+        total += item;
+        count++;
+    });
+
+    return total / count;
+}
+
 function netWorth(ns) {
+    const netWorthChangeLog = getItem(settings.keys.netWorthChangeLog);
+    const netWorthItem = getItem(settings.keys.netWorth);
     const allStocks = getAllStocks(ns);
     const portfolioValue = getPortfolioValue(allStocks);
     const cashValue = ns.getPlayer().money;
-    const totalValue = portfolioValue + cashValue;
-    ns.tprint(`Net worth: ${ns.nFormat(totalValue, "$0.000a")} = ${ns.nFormat(portfolioValue, "$0.000a")} stocks + ${ns.nFormat(cashValue, "$0.000a")} cash`);
+    const netWorth = portfolioValue + cashValue;
+    let prevNetWorth = 0
+    const logLength = 50;
+    if (netWorthItem == 0) {
+        prevNetWorth = netWorth;
+    } else {
+        prevNetWorth = netWorthItem
+    }
+    let netWorthChange = 0;
+    if (prevNetWorth != netWorth) {
+        netWorthChange = (netWorth / prevNetWorth)-1;
+    }
+    //ns.print(prevNetWorth);
+    //ns.print(netWorth);
+    //ns.print(netWorthChange);
+    if (netWorthChangeLog.length >= logLength) { netWorthChangeLog.pop() }
+    if (netWorthChange != 0) { netWorthChangeLog.push(netWorthChange) }
+    //ns.print(netWorthChangeLog)
+    setItem(settings.keys.netWorthChangeLog, netWorthChangeLog);
+    setItem(settings.keys.netWorth, netWorth);
+    ns.clearLog()
+    ns.print(`
+            [StockMarketer Summary]
+        Previous Net Worth: ${ns.nFormat(prevNetWorth, "$0.000a")}
+                 Net Worth: ${ns.nFormat(netWorth, "$0.000a")}
+          Net Worth Change: ${ns.nFormat(netWorth - prevNetWorth, "$0.000a")} (${ns.nFormat(netWorthChange, "%0.000")})
+  Average Net Worth Change: ${ns.nFormat(calculateAverage(netWorthChangeLog), "%0.000")}
+              Stocks Value: ${ns.nFormat(portfolioValue, "$0.000a")}
+                Cash Value: ${ns.nFormat(cashValue, "$0.000a")}`);
 }
 
 export async function main(ns) {
-    if (ns.args[2]) { var delay = ns.args[2]; } else { var delay = 30; };//delay in seconds
-    var delay = delay * 1000;
+    setItem(settings.keys.netWorthChangeLog, []);
+    setItem(settings.keys.netWorth, 0);
+    if (ns.args[2]) {
+        settings.delay = ns.args[2];
+    }
+    const delayMS = settings.delay * 1000;
     ns.disableLog("sleep");
     ns.disableLog("stock.buy");
     ns.disableLog("stock.sell");
+    netWorth(ns);
+    ns.tail()
     while (true) {
         tendStocks(ns);
-        c.ounter += 1;
-        if (c.ounter >= 10 && delay >= 1000) {
+        settings.counter += 1;
+        if (settings.counter % settings.delay == 0) {
             netWorth(ns);
-            c.ounter = 0;
-        } else if (c.ounter >= 350 && delay >= 1 && delay < 500) {
-            netWorth(ns);
-            c.ounter = 0;
-        } else if (c.ounter >= 150 && delay >= 500 && delay < 1000) {
-            c.ounter = 0;
         }
-        if (delay > 0) {
-            await ns.sleep(delay);
-        }
+        await ns.sleep(delayMS);
     }
 }
