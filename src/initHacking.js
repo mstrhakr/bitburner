@@ -1,30 +1,23 @@
+import { logEvent } from './common.js'
 const baseUrl = 'https://raw.githubusercontent.com/mstrhakr/bitburner/master/src/'
 const filesToDownload = [
-  'common.ns',
-  'mainHack.ns',
-  'spider.ns',
-  'grow.ns',
-  'hack.ns',
-  'weaken.ns',
-  'playerServers.ns',
-  'killAll.ns',
-  'runHacking.ns',
-  'find.ns',
-  'sellAllStock.ns',
-  'stockMarketer.ns',
+  'common.js',
+  'mainHack.js',
+  'spider.js',
+  'grow.js',
+  'hack.js',
+  'weaken.js',
+  'playerServers.js',
+  'killAll.js',
+  'runHacking.js',
+  'find.js',
+  'sellAllStock.js',
+  'stockMarketer.js',
 ]
 const valuesToRemove = ['BB_SERVER_MAP']
 
-function localeHHMMSS(ms = 0) {
-  if (!ms) {
-    ms = new Date().getTime()
-  }
-
-  return new Date(ms).toLocaleTimeString()
-}
-
 export async function main(ns) {
-  ns.tprint(`[${localeHHMMSS()}] Starting initHacking.ns`)
+  logEvent('start', 'Starting initHacking.ns', 'verbose')
 
   let hostname = ns.getHostname()
 
