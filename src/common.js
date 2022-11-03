@@ -12,11 +12,6 @@ export function settings() {
   }
 }
 
-export function logEvent(logType, message, logLevel) {
-  const localeHHMMSS = () => new Date(new Date().getTime()).toLocaleTimeString();
-  ns.tprint(`[${localeHHMMSS()}] ${logLevel ? logLevel.toUpper() + ': ' : ''}${logType.toUpper()}: ${message}`);
-}
-
 export function getItem(key) {
   let item = localStorage.getItem(key)
 
