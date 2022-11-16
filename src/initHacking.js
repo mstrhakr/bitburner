@@ -12,6 +12,16 @@ const filesToDownload = [
   'find.js',
   'sellAllStock.js',
   'stockMarketer.js',
+  'stockMarketer4S.js',
+  'commitCrime.js',
+  'contracter.js',
+  'getCrimesData.js',
+  'monitor.js',
+  'hackingMission.js',
+  'gangManager.js',
+  'gangFastAscender.js',
+  'prepareGang.js',
+  'karmaReducer.js',
 ];
 const valuesToRemove = ['BB_SERVER_MAP'];
 
